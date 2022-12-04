@@ -61,5 +61,5 @@ setup(
     },
     install_requires=[],
     tests_require=['click', 'gmpy2', 'numpy'],
-    test_suite="phe.tests"
+    test_suite="phe.tests.rr_test"
 )

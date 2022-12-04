@@ -44,10 +44,7 @@ def powmod(a, b, c):
     """
     if a == 1:
         return 1
-    if not HAVE_GMP or max(a, b, c) < _USE_MOD_FROM_GMP_SIZE:
-        return pow(a, b, c)
-    else:
-        return int(gmpy2.powmod(a, b, c))
+    return int(gmpy2.powmod(a, b, c))
 
 
 def mulmod(a, b, c):

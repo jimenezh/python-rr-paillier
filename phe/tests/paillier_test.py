@@ -28,7 +28,6 @@ import math
 
 from phe import paillier
 
-
 class PaillierGeneric(unittest.TestCase):
 
     def testDefaultCreateKeypair(self):

@@ -19,6 +19,8 @@
 
 """Paillier encryption library for partially homomorphic encryption."""
 import random
+import math
+from sympy.ntheory.factor_ import totient
 
 try:
     from collections.abc import Mapping
@@ -31,7 +33,7 @@ from phe.util import invert, powmod, mulmod, getprimeover, isqrt
 # Paillier cryptosystem is based on integer factorisation.
 # The default is chosen to give a minimum of 128 bits of security.
 # https://www.keylength.com/en/4/
-DEFAULT_KEYSIZE = 3072
+DEFAULT_KEYSIZE = 8
 
 
 def generate_paillier_keypair(private_keyring=None, n_length=DEFAULT_KEYSIZE):
@@ -193,6 +195,9 @@ class PaillierPublicKey(object):
             encrypted_number.obfuscate()
         return encrypted_number
 
+    def verify(self, c, m, r):
+      # Call encrypt to check c = CmtEnc(m,r)
+      return c == self.encrypt(m, r_value=r)
 
 class PaillierPrivateKey(object):
     """Contains a private key and associated decryption method.
@@ -213,6 +218,9 @@ class PaillierPrivateKey(object):
       p_inverse (int): p^-1 mod q
       hp (int): h(p) - see Paillier's paper.
       hq (int): h(q) - see Paillier's paper.
+      l (int): lambda(p,q), i.e. lcm(p-1, q-1) , where lambda func is carmchichael's function
+      mu (int): phi(N) ^ -1 mod N, where phi is euler's function
+      x (int): N^-1 mod phi(N)
     """
     def __init__(self, public_key, p, q):
         if not p*q == public_key.n:
@@ -233,6 +241,13 @@ class PaillierPrivateKey(object):
         self.p_inverse = invert(self.p, self.q)
         self.hp = self.h_function(self.p, self.psquare)
         self.hq = self.h_function(self.q, self.qsquare)
+
+        # Randomness recovery keys
+        phi_N = int(totient(self.public_key.n))
+
+        self.l = math.lcm(self.p - 1, self.q -1)
+        self.mu = powmod(phi_N, -1, self.public_key.n)
+        self.x = powmod(self.public_key.n, -1, phi_N)
 
     @staticmethod
     def from_totient(public_key, totient):
@@ -264,6 +279,14 @@ class PaillierPrivateKey(object):
     def __repr__(self):
         pub_repr = repr(self.public_key)
         return "<PaillierPrivateKey for {}>".format(pub_repr)
+
+    def decommitment_decrypt(self, c):
+      m = self.decrypt(c)
+      # Get ciphertext from encrypted number c
+      raw_ciphertext = c.ciphertext(False)
+      # Calculate r using [c(1-M*N)]^x mod N
+      r = powmod(raw_ciphertext * (1-(m*self.public_key.n) ), self.x, self.public_key.n)
+      return m, r
 
     def decrypt(self, encrypted_number):
         """Return the decrypted & decoded plaintext of *encrypted_number*.
@@ -486,6 +509,13 @@ class EncryptedNumber(object):
             raise TypeError('ciphertext should be an integer')
         if not isinstance(self.public_key, PaillierPublicKey):
             raise TypeError('public_key should be a PaillierPublicKey')
+
+    def __eq__(self, other):
+      if not isinstance(other, EncryptedNumber):
+          raise NotImplementedError('Good luck with that...')
+      else:
+        return self.ciphertext(False) == other.ciphertext(False)
+      
 
     def __add__(self, other):
         """Add an int, float, `EncryptedNumber` or `EncodedNumber`."""
