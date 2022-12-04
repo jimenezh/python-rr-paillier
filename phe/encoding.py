@@ -2,7 +2,6 @@ import fractions
 import math
 import sys
 
-
 class EncodedNumber(object):
     """Represents a float or int encoded for Paillier encryption.
 

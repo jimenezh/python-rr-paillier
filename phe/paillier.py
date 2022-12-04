@@ -89,7 +89,7 @@ class PaillierPublicKey(object):
         self.g = n + 1
         self.n = n
         self.nsquare = n * n
-        self.max_int = n // 3 - 1
+        self.max_int = self.nsquare
 
     def __repr__(self):
         publicKeyHash = hex(hash(self))[2:]
@@ -123,7 +123,6 @@ class PaillierPublicKey(object):
         if not isinstance(plaintext, int):
             raise TypeError('Expected int type plaintext but got: %s' %
                             type(plaintext))
-
         if self.n - self.max_int <= plaintext < self.n:
             # Very large plaintext, take a sneaky shortcut using inverses
             neg_plaintext = self.n - plaintext  # = abs(plaintext - nsquare)
@@ -134,7 +133,6 @@ class PaillierPublicKey(object):
             # we chose g = n + 1, so that we can exploit the fact that
             # (n+1)^plaintext = n*plaintext + 1 mod n^2
             nude_ciphertext = (self.n * plaintext + 1) % self.nsquare
-
         r = r_value or self.get_random_lt_n()
         obfuscator = powmod(r, self.n, self.nsquare)
 
@@ -173,7 +171,6 @@ class PaillierPublicKey(object):
             encoding = value
         else:
             encoding = EncodedNumber.encode(self, value, precision)
-
         return self.encrypt_encoded(encoding, r_value)
 
     def encrypt_encoded(self, encoding, r_value):
@@ -365,7 +362,6 @@ class PaillierPrivateKey(object):
         if not isinstance(ciphertext, int):
             raise TypeError('Expected ciphertext to be an int, not: %s' %
                 type(ciphertext))
-
         decrypt_to_p = mulmod(
             self.l_function(powmod(ciphertext, self.p-1, self.psquare), self.p),
             self.hp,
@@ -507,8 +503,20 @@ class EncryptedNumber(object):
         self.__is_obfuscated = False
         if isinstance(self.ciphertext, EncryptedNumber):
             raise TypeError('ciphertext should be an integer')
-        if not isinstance(self.public_key, PaillierPublicKey):
-            raise TypeError('public_key should be a PaillierPublicKey')
+
+    def __eq__(self, other):
+      if not isinstance(other, EncryptedNumber):
+          raise NotImplementedError('Good luck with that...')
+      else:
+        return self.ciphertext(False) == other.ciphertext(False)
+      
+
+    def __eq__(self, other):
+      if not isinstance(other, EncryptedNumber):
+          raise NotImplementedError('Good luck with that...')
+      else:
+        return self.ciphertext(False) == other.ciphertext(False)
+      
 
     def __eq__(self, other):
       if not isinstance(other, EncryptedNumber):
